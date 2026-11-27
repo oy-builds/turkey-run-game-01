@@ -1,152 +1,193 @@
-// hud.js — the HUD (score, distance, lives, stage, corn, farmer bar, dash)
-// and the full-screen title / pause / caught / escaped screens.
+// hud.js — the HUD and every menu screen of Gobble Run.
+// One job: draw the score/distance/lives/stage bar and the title, pause,
+// caught and escaped screens, and report which button the mouse clicked.
+(function () {
+  'use strict';
 
-import { VIEW, RUN } from './config.js';
-
-function panel(ctx, x, y, w, h) {
-  ctx.fillStyle = 'rgba(43, 26, 18, 0.72)';
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 10);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 220, 150, 0.5)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-}
-
-export function drawHud(ctx, s) {
-  ctx.save();
-  ctx.textBaseline = 'alphabetic';
-
-  // Top-left: score + distance
-  panel(ctx, 14, 12, 218, 64);
-  ctx.fillStyle = '#ffd94a';
-  ctx.font = 'bold 22px "Trebuchet MS", sans-serif';
-  ctx.fillText(`SCORE ${s.score}`, 26, 38);
-  ctx.fillStyle = '#fff4d6';
-  ctx.font = 'bold 15px "Trebuchet MS", sans-serif';
-  ctx.fillText(`${Math.floor(s.distance)} m  ·  ${s.stageName}`, 26, 62);
-
-  // Top-right: lives + corn
-  panel(ctx, VIEW.width - 232, 12, 218, 64);
-  ctx.fillStyle = '#ff6a5e';
-  ctx.font = '20px "Trebuchet MS", sans-serif';
-  let hearts = '';
-  for (let i = 0; i < 3; i++) hearts += i < s.lives ? '♥ ' : '♡ ';
-  ctx.fillText(hearts, VIEW.width - 220, 38);
-  ctx.fillStyle = '#fff4d6';
-  ctx.font = 'bold 15px "Trebuchet MS", sans-serif';
-  ctx.fillText(`🌽 ${s.corn}   🪶 ${s.feathers}`, VIEW.width - 220, 62);
-
-  // Farmer proximity bar, bottom centre (above the page hint line)
-  const barW = 320, barX = (VIEW.width - barW) / 2, barY = VIEW.height - 56;
-  const danger = 1 - (s.farmerGap - RUN.farmerCatchGap) / (RUN.farmerStartGap - RUN.farmerCatchGap);
-  const clamped = Math.max(0, Math.min(1, danger));
-  panel(ctx, barX - 8, barY - 8, barW + 16, 30);
-  ctx.fillStyle = '#3a2a1a';
-  ctx.fillRect(barX, barY, barW, 14);
-  const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
-  grad.addColorStop(0, '#7ac74f');
-  grad.addColorStop(0.6, '#f2c230');
-  grad.addColorStop(1, '#d9382b');
-  ctx.fillStyle = grad;
-  ctx.fillRect(barX, barY, barW * clamped, 14);
-  ctx.fillStyle = '#fff4d6';
-  ctx.font = 'bold 12px "Trebuchet MS", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(clamped > 0.66 ? 'BRAM IS RIGHT BEHIND YOU!' : 'FARMER BRAM', barX + barW / 2, barY - 14 + 8);
-  ctx.textAlign = 'left';
-
-  // Dash cooldown pip
-  if (s.dashCooldown > 0) {
-    ctx.fillStyle = 'rgba(255, 244, 214, 0.6)';
-    ctx.font = 'bold 12px "Trebuchet MS", sans-serif';
-    ctx.fillText(`DASH ${s.dashCooldown.toFixed(1)}s`, 26, VIEW.height - 16);
-  } else {
-    ctx.fillStyle = '#7ac74f';
-    ctx.font = 'bold 12px "Trebuchet MS", sans-serif';
-    ctx.fillText('DASH READY — SHIFT', 26, VIEW.height - 16);
+  function panel(ctx, x, y, w, h) {
+    ctx.fillStyle = 'rgba(43,26,14,0.82)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#f7c873';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
   }
-  ctx.restore();
-}
 
-function bigScreen(ctx, title, titleColor, lines, button) {
-  ctx.save();
-  ctx.fillStyle = 'rgba(30, 16, 8, 0.62)';
-  ctx.fillRect(0, 0, VIEW.width, VIEW.height);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = titleColor;
-  ctx.font = 'bold 54px "Trebuchet MS", sans-serif';
-  ctx.shadowColor = 'rgba(0,0,0,0.6)';
-  ctx.shadowBlur = 10;
-  ctx.fillText(title, VIEW.width / 2, 150);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = '#fff4d6';
-  ctx.font = '20px "Trebuchet MS", sans-serif';
-  lines.forEach((line, i) => ctx.fillText(line, VIEW.width / 2, 205 + i * 32));
-  if (button) {
-    const bw = 260, bh = 54, bx = (VIEW.width - bw) / 2, by = 330;
-    ctx.fillStyle = '#d9382b';
-    ctx.beginPath();
-    ctx.roundRect(bx, by, bw, bh, 12);
-    ctx.fill();
-    ctx.strokeStyle = '#ffd94a';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = '#fff4d6';
-    ctx.font = 'bold 22px "Trebuchet MS", sans-serif';
-    ctx.fillText(button, VIEW.width / 2, by + 36);
+  function button(ctx, x, y, w, h, label, hover) {
+    ctx.fillStyle = hover ? '#e08a2e' : '#c96a24';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#fff3c4';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x + w / 2, y + h / 2 + 7);
+    ctx.textAlign = 'left';
+    return { x: x, y: y, w: w, h: h };
   }
-  ctx.restore();
-}
 
-export function drawTitle(ctx, best) {
-  ctx.save();
-  ctx.fillStyle = 'rgba(30, 16, 8, 0.45)';
-  ctx.fillRect(0, 0, VIEW.width, VIEW.height);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffd94a';
-  ctx.font = 'bold 64px "Trebuchet MS", sans-serif';
-  ctx.shadowColor = 'rgba(0,0,0,0.7)';
-  ctx.shadowBlur = 12;
-  ctx.fillText('TURKEY TROT', VIEW.width / 2, 120);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = '#fff4d6';
-  ctx.font = 'bold 26px "Trebuchet MS", sans-serif';
-  ctx.fillText('— The Thanksgiving Breakout —', VIEW.width / 2, 162);
-  ctx.font = '19px "Trebuchet MS", sans-serif';
-  ctx.fillText('Thanksgiving dinner is coming for Tilly. Run, jump, duck, dash —', VIEW.width / 2, 214);
-  ctx.fillText('outrun Farmer Bram, dodge the oven and the carving knife,', VIEW.width / 2, 242);
-  ctx.fillText('and reach the woods 1,500 m away.', VIEW.width / 2, 270);
-  ctx.font = 'bold 18px "Trebuchet MS", sans-serif';
-  ctx.fillStyle = '#ffd94a';
-  ctx.fillText('SPACE / CLICK — jump (twice in the air!)    ↓ — duck    SHIFT — dash', VIEW.width / 2, 322);
-  ctx.fillStyle = '#fff4d6';
-  ctx.font = 'bold 24px "Trebuchet MS", sans-serif';
-  ctx.fillText('Press SPACE or CLICK to start', VIEW.width / 2, 372);
-  if (best > 0) {
-    ctx.font = '17px "Trebuchet MS", sans-serif';
-    ctx.fillStyle = '#ffb35c';
-    ctx.fillText(`Best escape so far: ${best} points`, VIEW.width / 2, 410);
+  function drawHUD(ctx, s, mouse) {
+    // top bar
+    ctx.fillStyle = 'rgba(43,26,14,0.85)';
+    ctx.fillRect(0, 0, 960, 46);
+    ctx.fillStyle = '#f7c873';
+    ctx.font = 'bold 19px Georgia';
+    ctx.fillText('SCORE ' + s.score, 14, 30);
+    ctx.fillText('CORN ' + s.corn + ' 🌽', 190, 30);
+    ctx.fillText('DIST ' + Math.floor(s.distance) + ' m', 340, 30);
+    ctx.fillStyle = '#ffd23e';
+    ctx.fillText(s.stageName, 500, 30);
+    // lives as hearts
+    ctx.font = '22px Georgia';
+    var hearts = '';
+    for (var i = 0; i < 3; i++) hearts += i < s.lives ? '❤' : '♡';
+    ctx.fillStyle = '#ff5a5a';
+    ctx.fillText(hearts, 830, 31);
+    // farmer proximity meter
+    var gap = Math.max(0, Math.min(1, s.farmerGap / 220));
+    ctx.fillStyle = '#2b1a0e';
+    ctx.fillRect(14, 52, 220, 12);
+    ctx.fillStyle = gap > 0.5 ? '#7ec850' : gap > 0.25 ? '#ffd23e' : '#c0392b';
+    ctx.fillRect(14, 52, 220 * gap, 12);
+    ctx.strokeStyle = '#f7c873';
+    ctx.strokeRect(14, 52, 220, 12);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px Georgia';
+    ctx.fillText(s.farmerGap < 60 ? '⚠ FARMER RIGHT BEHIND YOU!' : 'FARMER DISTANCE', 240, 63);
+    // flash messages
+    if (s.flash && s.flashTimer > 0) {
+      ctx.fillStyle = s.flashColor || '#fff';
+      ctx.font = 'bold 26px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.flash, 480, 110);
+      ctx.textAlign = 'left';
+    }
+    // mute + pause hints
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.font = '12px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText((s.muted ? 'MUTED (M)' : 'SOUND ON (M)') + '   ·   P pause', 950, 530);
+    ctx.textAlign = 'left';
   }
-  ctx.restore();
-}
 
-export function drawPause(ctx) {
-  bigScreen(ctx, 'PAUSED', '#ffd94a', ['Take a breath. Bram is waiting.', 'P — resume    R — restart'], null);
-}
+  function drawTitle(ctx, mouse, best) {
+    ctx.fillStyle = 'rgba(43,26,14,0.55)';
+    ctx.fillRect(0, 0, 960, 540);
+    panel(ctx, 180, 60, 600, 420);
+    ctx.fillStyle = '#ffd23e';
+    ctx.font = 'bold 52px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('GOBBLE RUN', 480, 140);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px Georgia';
+    ctx.fillText('The Great Turkey Escape', 480, 178);
+    ctx.font = '16px Georgia';
+    ctx.fillStyle = '#f3d9a4';
+    ctx.fillText('Thanksgiving is coming. Jed the farmer has the oven on,', 480, 215);
+    ctx.fillText('the carving knife sharpened — and your name on the menu.', 480, 238);
+    ctx.fillText('Run from the farmyard, through the barn, past the kitchen,', 480, 261);
+    ctx.fillText('and reach the woods 1800 m away. Hide in the hay when he', 480, 284);
+    ctx.fillText('gets close. Eat corn. Do NOT become dinner.', 480, 307);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 15px Georgia';
+    ctx.fillText('← → run · SPACE jump · ↓ hide in hay · P pause', 480, 340);
+    var start = button(ctx, 380, 360, 200, 48, '▶  START RUN', mouse.x > 380 && mouse.x < 580 && mouse.y > 360 && mouse.y < 408);
+    var how = button(ctx, 380, 420, 200, 40, 'HOW TO PLAY', mouse.x > 380 && mouse.x < 580 && mouse.y > 420 && mouse.y < 460);
+    if (best > 0) {
+      ctx.fillStyle = '#ffd23e';
+      ctx.font = 'bold 15px Georgia';
+      ctx.fillText('Best escape: ' + best + ' points', 480, 500 - 12);
+    }
+    ctx.textAlign = 'left';
+    return { start: start, how: how };
+  }
 
-export function drawCaught(ctx, s) {
-  bigScreen(ctx, 'CAUGHT!', '#ff6a5e', [
-    'Farmer Bram grabbed Tilly. Dinner is served...',
-    `You ran ${Math.floor(s.distance)} m and scored ${s.score} points.`,
-    `Corn eaten: ${s.corn}   ·   Best: ${s.best}`,
-  ], 'RUN AGAIN  (R)');
-}
+  function drawHowTo(ctx, mouse) {
+    ctx.fillStyle = 'rgba(43,26,14,0.6)';
+    ctx.fillRect(0, 0, 960, 540);
+    panel(ctx, 180, 70, 600, 400);
+    ctx.fillStyle = '#ffd23e';
+    ctx.font = 'bold 30px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('HOW TO PLAY', 480, 120);
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Georgia';
+    var lines = [
+      'You are Tom, a turkey with places to be (anywhere but the oven).',
+      '',
+      '← → or A / D — dart left and right.  SPACE / ↑ / W — jump fences,',
+      'pumpkins, hay bales and roasting pans.',
+      '↓ / S — dive into a haystack when one is beside you; Jed will',
+      'search the hay and lose your trail. Corn is +50 points.',
+      '',
+      'Hitting a fence, a bale, a pumpkin, a knife or a pan costs a life',
+      'and lets Jed gain on you. Lose all 3 lives — or let Jed grab you',
+      '— and you are Thanksgiving dinner.',
+      '',
+      'Three stages, each faster: the farmyard, the barn, the kitchen.',
+      'Reach 1800 m and the woods, and Tom lives to gobble another day.',
+      '',
+      'Click START or press ENTER to run.'
+    ];
+    for (var i = 0; i < lines.length; i++) ctx.fillText(lines[i], 480, 152 + i * 24);
+    var back = button(ctx, 380, 420, 200, 40, '← BACK', mouse.x > 380 && mouse.x < 580 && mouse.y > 420 && mouse.y < 460);
+    ctx.textAlign = 'left';
+    return { back: back };
+  }
 
-export function drawEscaped(ctx, s) {
-  bigScreen(ctx, 'ESCAPED!', '#7ac74f', [
-    'Tilly vanished into the woods. No turkey dinner this year!',
-    `Escape bonus +${1000}  ·  Final score ${s.score}`,
-    `Corn eaten: ${s.corn}   ·   Best: ${s.best}`,
-  ], 'RUN AGAIN  (R)');
-}
+  function drawPaused(ctx, mouse) {
+    ctx.fillStyle = 'rgba(43,26,14,0.6)';
+    ctx.fillRect(0, 0, 960, 540);
+    panel(ctx, 280, 180, 400, 180);
+    ctx.fillStyle = '#ffd23e';
+    ctx.font = 'bold 36px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAUSED', 480, 240);
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Georgia';
+    ctx.fillText('Tom is catching his breath. Jed is not.', 480, 272);
+    var resume = button(ctx, 380, 292, 200, 44, 'RESUME', mouse.x > 380 && mouse.x < 580 && mouse.y > 292 && mouse.y < 336);
+    ctx.textAlign = 'left';
+    return { resume: resume };
+  }
+
+  function drawEnd(ctx, s, mouse) {
+    var escaped = s.state === 'escaped';
+    ctx.fillStyle = escaped ? 'rgba(20,60,25,0.55)' : 'rgba(60,10,10,0.55)';
+    ctx.fillRect(0, 0, 960, 540);
+    panel(ctx, 180, 90, 600, 360);
+    ctx.fillStyle = escaped ? '#7ec850' : '#ff8a7a';
+    ctx.font = 'bold 46px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(escaped ? '🦃 ESCAPED!' : '🍗 CAUGHT!', 480, 165);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px Georgia';
+    ctx.fillText(escaped
+      ? 'Tom burst into the woods, free at last —'
+      : 'Jed got him. The oven was already warm.',
+      480, 205);
+    ctx.fillText(escaped
+      ? 'and somewhere behind him, a very confused farmer.'
+      : 'But Tom left corn crumbs all the way. Run again?',
+      480, 232);
+    ctx.font = 'bold 18px Georgia';
+    ctx.fillStyle = '#ffd23e';
+    ctx.fillText('SCORE ' + s.score + '   ·   DISTANCE ' + Math.floor(s.distance) + ' m   ·   CORN ' + s.corn, 480, 285);
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Georgia';
+    ctx.fillText('Best score: ' + s.best, 480, 315);
+    if (s.newBest) {
+      ctx.fillStyle = '#ffd23e';
+      ctx.font = 'bold 18px Georgia';
+      ctx.fillText('★ NEW BEST SCORE! ★', 480, 345);
+    }
+    var again = button(ctx, 370, 372, 220, 48, '↻  RUN AGAIN (R)', mouse.x > 370 && mouse.x < 590 && mouse.y > 372 && mouse.y < 420);
+    ctx.textAlign = 'left';
+    return { again: again };
+  }
+
+  window.GobbleHUD = {
+    drawHUD: drawHUD, drawTitle: drawTitle, drawHowTo: drawHowTo,
+    drawPaused: drawPaused, drawEnd: drawEnd
+  };
+})();

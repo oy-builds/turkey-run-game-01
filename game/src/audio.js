@@ -1,86 +1,96 @@
-// audio.js — all sound is synthesized with WebAudio; no audio files, no network.
-// A tiny gobble-and-dash soundscape: jump chirp, corn ding, knife whoosh,
-// stumble thud, caught sting, escape fanfare, plus a soft banjo-ish pluck loop.
+// audio.js — all sound for Gobble Run, synthesized with WebAudio.
+// No audio files: every gobble, thud and jingle is built from oscillators.
+(function () {
+  'use strict';
 
-export function createAudio() {
-  let ctx = null;
-  let muted = false;
-  let musicTimer = null;
-  let musicStep = 0;
+  var ctx = null;
+  var muted = false;
+  var musicTimer = null;
+  var musicStep = 0;
 
-  function ensure() {
+  // A bouncy autumnal bass line the game hums while you run.
+  var MELODY = [262, 0, 330, 392, 0, 330, 294, 0, 220, 0, 262, 294, 330, 0, 392, 0];
+
+  function ensureCtx() {
     if (!ctx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
-      ctx = new AC();
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        ctx = new AC();
+      } catch (e) { ctx = null; }
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx && ctx.state === 'suspended') ctx.resume();
     return ctx;
   }
 
-  function tone(freq, dur, type = 'sine', vol = 0.16, slideTo = null, delay = 0) {
+  function tone(freq, dur, type, vol, when, slideTo) {
     if (muted) return;
-    const ac = ensure();
-    if (!ac) return;
-    const t0 = ac.currentTime + delay;
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.type = type;
+    var c = ensureCtx();
+    if (!c) return;
+    var t0 = c.currentTime + (when || 0);
+    var osc = c.createOscillator();
+    var gain = c.createGain();
+    osc.type = type || 'square';
     osc.frequency.setValueAtTime(freq, t0);
     if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t0 + dur);
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(gain).connect(ac.destination);
+    gain.gain.setValueAtTime(vol || 0.12, t0);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    osc.connect(gain);
+    gain.connect(c.destination);
     osc.start(t0);
-    osc.stop(t0 + dur + 0.05);
+    osc.stop(t0 + dur + 0.02);
   }
 
-  // A two-note gobble: the turkey's own voice.
   function gobble() {
-    tone(520, 0.09, 'square', 0.10, 380);
-    tone(660, 0.08, 'square', 0.09, 480, 0.09);
-    tone(440, 0.12, 'square', 0.10, 300, 0.18);
+    tone(520, 0.09, 'sawtooth', 0.10, 0, 300);
+    tone(430, 0.09, 'sawtooth', 0.10, 0.10, 260);
+    tone(620, 0.14, 'sawtooth', 0.12, 0.20, 340);
   }
 
-  const MELODY = [392, 0, 440, 523, 0, 440, 392, 330, 0, 392, 440, 0, 523, 587, 0, 0];
+  function jumpSound() { tone(280, 0.16, 'sine', 0.14, 0, 620); }
+  function pickupSound() { tone(880, 0.08, 'sine', 0.12); tone(1320, 0.12, 'sine', 0.10, 0.07); }
+  function hideSound() { tone(180, 0.25, 'triangle', 0.10, 0, 90); }
+  function stumbleSound() { tone(160, 0.25, 'sawtooth', 0.16, 0, 60); tone(90, 0.2, 'square', 0.10, 0.05, 50); }
+  function spottedSound() {
+    tone(740, 0.10, 'square', 0.14); tone(740, 0.10, 'square', 0.14, 0.12);
+    tone(988, 0.22, 'square', 0.14, 0.24);
+  }
+  function caughtSound() {
+    tone(392, 0.18, 'sawtooth', 0.16); tone(311, 0.18, 'sawtooth', 0.16, 0.18);
+    tone(233, 0.4, 'sawtooth', 0.16, 0.36, 110);
+  }
+  function escapeSound() {
+    var notes = [523, 659, 784, 1047, 784, 1047];
+    for (var i = 0; i < notes.length; i++) tone(notes[i], 0.22, 'triangle', 0.14, i * 0.14);
+  }
+  function clickSound() { tone(660, 0.05, 'sine', 0.08); }
+
   function startMusic() {
-    if (musicTimer) return;
-    musicTimer = setInterval(() => {
+    if (musicTimer || muted) return;
+    ensureCtx();
+    musicStep = 0;
+    musicTimer = setInterval(function () {
       if (muted) return;
-      const note = MELODY[musicStep % MELODY.length];
-      musicStep += 1;
-      if (note) tone(note, 0.16, 'triangle', 0.045);
-      if (musicStep % 8 === 0) tone(196, 0.3, 'sine', 0.05);
+      var note = MELODY[musicStep % MELODY.length];
+      if (note) tone(note, 0.16, 'triangle', 0.05);
+      musicStep++;
     }, 170);
   }
+
   function stopMusic() {
     if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
   }
 
-  return {
-    unlock() { ensure(); },
-    toggleMute() { muted = !muted; return muted; },
-    get muted() { return muted; },
-    jump() { tone(420, 0.14, 'sine', 0.14, 760); },
-    doubleJump() { tone(560, 0.12, 'sine', 0.12, 940); },
-    dash() { tone(300, 0.18, 'sawtooth', 0.08, 900); },
-    corn() { tone(880, 0.09, 'sine', 0.14); tone(1318, 0.12, 'sine', 0.12, null, 0.07); },
-    feather() { [660, 880, 1100, 1318].forEach((f, i) => tone(f, 0.1, 'sine', 0.12, null, i * 0.06)); },
-    nearMiss() { tone(1200, 0.06, 'sine', 0.08, 1600); },
-    stumble() { tone(180, 0.25, 'sawtooth', 0.18, 70); gobble(); },
-    knife() { tone(1400, 0.22, 'sawtooth', 0.05, 300); },
-    caught() {
-      stopMusic();
-      [392, 370, 349, 311].forEach((f, i) => tone(f, 0.28, 'sawtooth', 0.14, null, i * 0.22));
-      gobble();
-    },
-    escaped() {
-      stopMusic();
-      [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, 0.22, 'triangle', 0.15, null, i * 0.12));
-      gobble();
-    },
-    startMusic,
-    stopMusic,
+  function toggleMute() {
+    muted = !muted;
+    if (muted) stopMusic();
+    return muted;
+  }
+
+  window.GobbleAudio = {
+    gobble: gobble, jump: jumpSound, pickup: pickupSound, hide: hideSound,
+    stumble: stumbleSound, spotted: spottedSound, caught: caughtSound,
+    escape: escapeSound, click: clickSound,
+    startMusic: startMusic, stopMusic: stopMusic, toggleMute: toggleMute,
+    isMuted: function () { return muted; }, unlock: ensureCtx
   };
-}
+})();
