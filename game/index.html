@@ -3,30 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gobble Run — The Great Turkey Escape</title>
-<link rel="icon" href="data:,">
+<title>Turkey Trot — The Thanksgiving Breakout</title>
 <style>
-  html, body { margin: 0; padding: 0; background: #2b1a0e; height: 100%; }
-  body { display: flex; align-items: center; justify-content: center; font-family: Georgia, 'Times New Roman', serif; }
-  #wrap { position: relative; width: min(960px, 100vw); }
-  canvas { display: block; width: 100%; height: auto; background: #f7c873; border: 4px solid #7a4a1f; border-radius: 10px; box-sizing: border-box; }
-  #hint { color: #f3d9a4; text-align: center; font-size: 13px; padding: 6px 4px 0; }
-  #hint b { color: #fff; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #2b1a12;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+    overflow: hidden;
+  }
+  #stage {
+    position: relative;
+    width: min(100vw, 177.78vh);
+    height: min(100vh, 56.25vw);
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+  }
+  canvas { display: block; width: 100%; height: 100%; image-rendering: auto; }
+  #hint {
+    position: absolute; left: 0; right: 0; bottom: 6px;
+    text-align: center; color: rgba(255, 244, 214, 0.55);
+    font-size: 12px; letter-spacing: 0.08em; pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  }
 </style>
 </head>
 <body>
-<div id="wrap">
-  <canvas id="game" width="960" height="540"></canvas>
-  <div id="hint"><b>Arrows / WASD</b> run &amp; jump &nbsp;·&nbsp; <b>Down / S</b> hide in hay &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>P</b> pause &nbsp;·&nbsp; <b>M</b> mute &nbsp;·&nbsp; Click the buttons too</div>
-</div>
-<script src="src/input.js"></script>
-<script src="src/audio.js"></script>
-<script src="src/art.js"></script>
-<script src="src/turkey.js"></script>
-<script src="src/farmer.js"></script>
-<script src="src/kitchen.js"></script>
-<script src="src/hud.js"></script>
-<script src="src/shots.js"></script>
-<script src="src/main.js"></script>
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="hint">SPACE jump &nbsp;·&nbsp; DOWN duck &nbsp;·&nbsp; SHIFT dash &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M mute</div>
+  </div>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
